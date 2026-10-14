@@ -16,9 +16,9 @@ class Balance {
   // --- Pedang (orbit) ---
   /// [damage, radiusOrbit, kecepatanPutar (rad/s), hargaKoin] per tier (index 0 = tier 1).
   static const List<SwordTier> swordTiers = [
-    SwordTier(damage: 10, orbitRadius: 70, spinSpeed: 3.5, cost: 0),
-    SwordTier(damage: 22, orbitRadius: 95, spinSpeed: 3.5, cost: 30),
-    SwordTier(damage: 45, orbitRadius: 125, spinSpeed: 4.0, cost: 80),
+    SwordTier(damage: 10, orbitRadius: 70, spinSpeed: 4.2, cost: 0),
+    SwordTier(damage: 22, orbitRadius: 95, spinSpeed: 4.5, cost: 30),
+    SwordTier(damage: 45, orbitRadius: 125, spinSpeed: 5.0, cost: 80),
   ];
 
   // --- Zombie ---
@@ -39,9 +39,13 @@ class Balance {
   static const int maxAliveZombies = 150;
 
   // --- Koin ---
-  static const double coinMagnetRadius = 40;
+  /// Jarak koin mulai ketarik ke player.
+  static const double coinMagnetRadius = 110;
   static const double coinPickupRadius = 18;
-  static const double coinMagnetSpeed = 320;
+  /// Percepatan koin saat ketarik magnet (makin dekat makin kencang).
+  static const double coinMagnetPull = 1600;
+  /// Kecepatan maksimum koin saat ketarik magnet.
+  static const double coinMagnetMaxSpeed = 650;
   static const double coinScatterSpeed = 60;
 
   // --- Combat (Phase 1) ---

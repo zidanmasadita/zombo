@@ -39,8 +39,11 @@ class CoinComponent extends SpriteAnimationComponent
     final toPlayer = game.player.position - position;
     final dist = toPlayer.length;
     if (dist < Balance.coinMagnetRadius && dist > 1) {
-      // Magnet: terbang ke player.
-      _velocity = toPlayer.normalized() * Balance.coinMagnetSpeed;
+      // Magnet: percepat ke arah player (efek kesedot, makin dekat makin kencang).
+      _velocity += toPlayer.normalized() * Balance.coinMagnetPull * dt;
+      if (_velocity.length > Balance.coinMagnetMaxSpeed) {
+        _velocity = _velocity.normalized() * Balance.coinMagnetMaxSpeed;
+      }
     } else {
       // Gesekan: kecepatan awal (scatter) cepat habis.
       _velocity *= math.exp(-6 * dt);
