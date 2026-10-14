@@ -40,6 +40,19 @@ class Balance {
 
   // --- Koin ---
   static const double coinMagnetRadius = 40;
+  static const double coinPickupRadius = 18;
+  static const double coinMagnetSpeed = 320;
+  static const double coinScatterSpeed = 60;
+
+  // --- Combat (Phase 1) ---
+  /// Cooldown hit per zombie agar satu sapuan tidak multi-hit tiap frame.
+  static const double swordHitCooldown = 0.35;
+
+  /// Setengah lebar sudut hit pedang (rad).
+  static const double swordHitAngle = 0.5;
+
+  /// Radius sentuh player (untuk damage zombie).
+  static const double playerHitRadius = 28;
 }
 
 class SwordTier {

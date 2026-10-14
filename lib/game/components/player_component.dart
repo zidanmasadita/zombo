@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
@@ -26,6 +28,27 @@ class PlayerComponent extends SpriteAnimationComponent
 
   _PlayerVisual _visual = _PlayerVisual.idle;
 
+  /// Sisa detik kebal (i-frames) setelah kena hit.
+  double _invulnTimer = 0;
+
+  static const _flashFilter =
+      ColorFilter.mode(Colors.white, BlendMode.srcATop);
+
+  /// Kena hit zombie: HP kurang (diabaikan selama i-frames), mulai kedip.
+  void takeDamage(int damage) {
+    if (_invulnTimer > 0) return;
+    _invulnTimer = Balance.playerInvulnerableSeconds;
+    game.state.hp.value = math.max(0, game.state.hp.value - damage);
+  }
+
+  /// Reset ke awal run: tengah arena, HP visual bersih, idle.
+  void reset() {
+    position = game.size / 2;
+    _invulnTimer = 0;
+    paint.colorFilter = null;
+    _setVisual(_PlayerVisual.idle);
+  }
+
   @override
   Future<void> onLoad() async {
     // 4 frame jalan, stepTime ~0.12 (dari brief Phase 0).
@@ -50,6 +73,15 @@ class PlayerComponent extends SpriteAnimationComponent
   @override
   void update(double dt) {
     super.update(dt);
+
+    // Kedip selama i-frames (tanda player sedang kebal).
+    if (_invulnTimer > 0) {
+      _invulnTimer -= dt;
+      final flashOn = (_invulnTimer * 12).floor() % 2 == 0;
+      paint.colorFilter = flashOn ? _flashFilter : null;
+    } else if (paint.colorFilter != null) {
+      paint.colorFilter = null;
+    }
 
     final delta = game.joystick.delta;
     final moving = delta.length > Balance.joystickDeadzone;

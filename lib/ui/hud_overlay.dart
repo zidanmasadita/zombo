@@ -3,18 +3,31 @@ import 'package:flutter/material.dart';
 import '../core/game_state.dart';
 
 /// HUD overlay (Flutter, di atas canvas Flame).
-/// Phase 0: skeleton — bar HP + koin + timer + kills, nilai dari [GameState].
-/// Phase 1/2: nilai diisi game logic (HP berkurang, koin nambah, dst).
+/// Phase 1: nilai real dari [GameState] + dialog game over + tombol restart.
+/// [onRestart] dipanggil saat tombol MAIN LAGI ditekan.
 class HudOverlay extends StatelessWidget {
-  const HudOverlay({super.key, required this.state});
+  const HudOverlay({
+    super.key,
+    required this.state,
+    required this.onRestart,
+  });
 
   final GameState state;
+  final VoidCallback onRestart;
+
+  String _formatTime(int seconds) {
+    final mm = (seconds ~/ 60).toString().padLeft(2, '0');
+    final ss = (seconds % 60).toString().padLeft(2, '0');
+    return '$mm:$ss';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+    return Stack(
+      children: [
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
         child: Column(
           children: [
             Row(
@@ -138,6 +151,87 @@ class HudOverlay extends StatelessWidget {
           ],
         ),
       ),
+        ),
+        // Dialog game over (muncul saat HP habis, engine ter-pause).
+        ValueListenableBuilder<bool>(
+          valueListenable: state.isGameOver,
+          builder: (context, over, _) {
+            if (!over) return const SizedBox.shrink();
+            return Positioned.fill(
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.7),
+                child: Center(
+                  child: Container(
+                    margin: const EdgeInsets.all(32),
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1E1E),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'GAME OVER',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 28,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Waktu: ${_formatTime(state.elapsedSeconds.value)}',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Kills: ${state.kills.value}',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Koin: ${state.coins.value}',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: onRestart,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.amber,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 14,
+                            ),
+                          ),
+                          child: const Text(
+                            'MAIN LAGI',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }

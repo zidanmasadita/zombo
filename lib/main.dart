@@ -24,8 +24,10 @@ void main() async {
         body: GameWidget(
           game: game,
           overlayBuilderMap: {
-            'hud': (context, game) =>
-                HudOverlay(state: (game as ZomboGame).state),
+            'hud': (context, _) => HudOverlay(
+                  state: game.state,
+                  onRestart: game.restart,
+                ),
           },
           initialActiveOverlays: const ['hud'],
         ),
