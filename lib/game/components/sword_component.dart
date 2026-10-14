@@ -6,11 +6,13 @@ import 'package:flutter/material.dart';
 import '../../core/balance.dart';
 import '../zombo_game.dart';
 
-/// Pedang orbit: muter non-stop mengelilingi player, menghantam zombie.
+/// Pedang orbit MESIN POTONG RUMPUT: muter super kencang (~4-5 putaran/detik)
+/// sampai blade jadi blur, dan hit-nya CINCIN — zombie apa pun yang masuk
+/// band radial blade kena hit (bukan cuma pas pedang lewat, karena pada
+/// kecepatan ini cek sudut per-frame tidak lagi andal / tunneling).
 ///
 /// - Anchor di gagang (dari manifest preprocessing, per tier) — VERIFY
 ///   visual di HP; gagang harus nempel di radius orbit, blade keluar.
-/// - Hit detection: sudut zombie vs sudut pedang + band radial blade.
 /// - Per-zombie hit cooldown agar satu sapuan tidak multi-hit tiap frame.
 /// - Sprite + ukuran + anchor ganti otomatis saat [GameState.swordTier] berubah
 ///   (upgrade di Phase 2).
@@ -35,6 +37,15 @@ class SwordComponent extends SpriteComponent with HasGameReference<ZomboGame> {
   double _anchorX = 0.343;
 
   double _angle = 0;
+
+  /// Geometri cincin blur untuk [BladeRingComponent]: (radius tengah, tebal).
+  /// Cincin mengikuti jalur blade: dari gagang sampai ujung blade.
+  static (double, double) ringGeometry(int tier) {
+    final visual = _tierVisuals[tier];
+    final bladeLen = (1 - visual.$4) * visual.$2;
+    final orbit = Balance.swordTiers[tier].orbitRadius;
+    return (orbit + bladeLen / 2, bladeLen);
+  }
 
   @override
   Future<void> onLoad() async {
@@ -66,7 +77,9 @@ class SwordComponent extends SpriteComponent with HasGameReference<ZomboGame> {
         Vector2(math.cos(_angle), math.sin(_angle)) * tier.orbitRadius;
     angle = _angle;
 
-    // Band radial blade: dari gagang sampai ujung blade.
+    // Hit CINCIN (mesin potong rumput): zombie dalam band radial blade kena,
+    // tanpa cek sudut — pada 25+ rad/s, pedang melompati sudut besar tiap
+    // frame sehingga cek sudut tidak andal (tunneling).
     final tipDist = tier.orbitRadius + (1 - _anchorX) * size.x;
     for (final zombie in game.zombies) {
       if (game.isGameOver) break;
@@ -79,18 +92,34 @@ class SwordComponent extends SpriteComponent with HasGameReference<ZomboGame> {
           dist > tipDist + zombie.hitRadius) {
         continue;
       }
-      final zombieAngle = math.atan2(toZombie.y, toZombie.x);
-      var diff = zombieAngle - _angle;
-      while (diff > math.pi) {
-        diff -= 2 * math.pi;
-      }
-      while (diff < -math.pi) {
-        diff += 2 * math.pi;
-      }
-      if (diff.abs() < Balance.swordHitAngle) {
-        zombie.takeHit(tier.damage, game.runTime, _angle);
-        game.onSwordHit(zombie.position, tier.damage);
-      }
+      zombie.takeHit(tier.damage, game.runTime, _angle);
+      game.onSwordHit(zombie.position, tier.damage);
     }
+  }
+}
+
+/// Cincin blur jalur blade (efek mesin potong rumput): lingkaran tembus pandang
+/// yang mengikuti player, radius + tebal dari [SwordComponent.ringGeometry].
+/// Satu drawCircle per frame — murah, tidak alokasi.
+class BladeRingComponent extends PositionComponent
+    with HasGameReference<ZomboGame> {
+  BladeRingComponent() : super(anchor: Anchor.center);
+
+  final _paint = Paint()
+    ..color = Colors.white.withValues(alpha: 0.10)
+    ..style = PaintingStyle.stroke;
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    position.setFrom(game.player.position);
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final (midRadius, strokeWidth) =
+        SwordComponent.ringGeometry(game.state.swordTier.value);
+    _paint.strokeWidth = strokeWidth;
+    canvas.drawCircle(Offset.zero, midRadius, _paint);
   }
 }

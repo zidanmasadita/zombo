@@ -4,7 +4,8 @@ class Balance {
   Balance._();
 
   // --- Player ---
-  static const double playerSpeed = 170;
+  /// Dinaikkan 2026-10-14 (170 -> 200): menghindar harus terasa responsif.
+  static const double playerSpeed = 200;
   static const int playerMaxHp = 100;
   /// Detik kebal setelah kena hit (i-frames).
   static const double playerInvulnerableSeconds = 0.5;
@@ -15,10 +16,11 @@ class Balance {
 
   // --- Pedang (orbit) ---
   /// [damage, radiusOrbit, kecepatanPutar (rad/s), hargaKoin] per tier (index 0 = tier 1).
+  /// Spin MESIN POTONG RUMPUT (2026-10-14): ~4-5 putaran/detik, blade jadi blur.
   static const List<SwordTier> swordTiers = [
-    SwordTier(damage: 10, orbitRadius: 70, spinSpeed: 5.0, cost: 0),
-    SwordTier(damage: 22, orbitRadius: 95, spinSpeed: 5.4, cost: 30),
-    SwordTier(damage: 45, orbitRadius: 125, spinSpeed: 6.0, cost: 80),
+    SwordTier(damage: 10, orbitRadius: 70, spinSpeed: 25, cost: 0),
+    SwordTier(damage: 22, orbitRadius: 95, spinSpeed: 28, cost: 30),
+    SwordTier(damage: 45, orbitRadius: 125, spinSpeed: 32, cost: 80),
   ];
 
   /// Nama tier pedang (index sama dengan [swordTiers]).
@@ -56,18 +58,18 @@ class Balance {
   /// Cooldown hit per zombie agar satu sapuan tidak multi-hit tiap frame.
   static const double swordHitCooldown = 0.35;
 
-  /// Setengah lebar sudut hit pedang (rad).
-  static const double swordHitAngle = 0.5;
-
   /// Radius sentuh player (untuk damage zombie).
   static const double playerHitRadius = 28;
 
   // --- Juice (Phase 3) ---
   /// Jumlah partikel per burst: kena hit / zombie mati / koin / upgrade.
-  static const int hitParticles = 8;
+  static const int hitParticles = 6;
   static const int deathParticles = 14;
   static const int coinSparkleParticles = 6;
   static const int upgradeParticles = 16;
+
+  /// Cap burst partikel yang hidup bersamaan (anti-stutter saat zombie banyak).
+  static const int maxLiveBursts = 24;
 
   /// Screen shake saat player kena hit (px) + durasinya (detik).
   static const double shakeOnPlayerHit = 8;

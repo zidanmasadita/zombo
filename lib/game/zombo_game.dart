@@ -51,6 +51,9 @@ class ZomboGame extends FlameGame {
   late final SwordComponent _sword;
   late final SpawnerComponent _spawner;
 
+  /// Burst partikel yang hidup saat ini (cap anti-stutter).
+  int _liveBursts = 0;
+
   final _random = math.Random();
 
   /// Detik sejak run dimulai (jam game, berhenti saat game over).
@@ -88,10 +91,11 @@ class ZomboGame extends FlameGame {
     player = PlayerComponent()..position = size / 2;
     add(player);
 
-    // Pedang orbit (tier 1 di Phase 1).
+    // Pedang orbit (tier 1 di Phase 1) + cincin blur jalur blade.
     final swordSprite = await loadSprite('sword_tier1.png');
     _sword = SwordComponent(sprite: swordSprite);
     add(_sword);
+    add(BladeRingComponent());
 
     // Spawner zombie.
     _spawner = SpawnerComponent();
@@ -195,6 +199,11 @@ class ZomboGame extends FlameGame {
       coin.removeFromParent();
     }
     coins.clear();
+    // Burst partikel ikut dibersihkan (onDone-nya decrement _liveBursts).
+    for (final burst in List.of(children.query<BurstComponent>())) {
+      burst.removeFromParent();
+    }
+    _liveBursts = 0;
   }
 
   /// Pedang menghantam zombie: burst + angka damage + suara.
@@ -225,6 +234,9 @@ class ZomboGame extends FlameGame {
     double life = 0.4,
     double size = 3,
   }) {
+    // Cap burst hidup (anti-stutter saat zombie banyak + hit cincin sering).
+    if (_liveBursts >= Balance.maxLiveBursts) return;
+    _liveBursts++;
     add(
       BurstComponent(
         position: pos,
@@ -233,6 +245,9 @@ class ZomboGame extends FlameGame {
         speed: speed,
         life: life,
         size: size,
+        onDone: () {
+          if (_liveBursts > 0) _liveBursts--;
+        },
       ),
     );
   }
@@ -344,6 +359,7 @@ class ZomboGame extends FlameGame {
   /// Dipakai dari dialog game over (MAIN LAGI) & pause menu (ULANGI).
   void restart() {
     _clearEntities();
+    _liveBursts = 0;
     runTime = 0;
     state.reset();
     player.reset();
