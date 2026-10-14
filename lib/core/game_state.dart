@@ -33,6 +33,15 @@ class GameState {
   /// True saat player mati (game over).
   final ValueNotifier<bool> isGameOver = ValueNotifier(false);
 
+  /// True saat di menu utama (bukan dalam run).
+  final ValueNotifier<bool> isMenu = ValueNotifier(false);
+
+  /// True saat suara di-mute (settings, tersimpan antar sesi).
+  final ValueNotifier<bool> isMuted = ValueNotifier(false);
+
+  /// True saat getar nyala (settings, tersimpan antar sesi).
+  final ValueNotifier<bool> isVibration = ValueNotifier(true);
+
   /// Kembalikan semua nilai ke awal run baru.
   void reset() {
     hp.value = 100;
@@ -43,7 +52,8 @@ class GameState {
     isPaused.value = false;
     isGameOver.value = false;
     isNewRecord.value = false;
-    // bestTime / bestKills sengaja TIDAK di-reset (rekor antar sesi).
+    // bestTime / bestKills / isMenu / isMuted / isVibration TIDAK di-reset.
+    // isMenu diatur eksplisit oleh startRun()/toMenu().
   }
 
   void dispose() {
@@ -57,5 +67,8 @@ class GameState {
     isNewRecord.dispose();
     isPaused.dispose();
     isGameOver.dispose();
+    isMenu.dispose();
+    isMuted.dispose();
+    isVibration.dispose();
   }
 }

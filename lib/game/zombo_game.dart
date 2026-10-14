@@ -2,25 +2,33 @@ import 'dart:async' show unawaited;
 import 'dart:math' as math;
 
 import 'package:flame/game.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../core/audio_service.dart';
 import '../core/balance.dart';
 import '../core/best_score.dart';
 import '../core/game_state.dart';
 import 'components/background_component.dart';
 import 'components/coin_component.dart';
 import 'components/floating_joystick_component.dart';
+import 'components/fx_component.dart';
 import 'components/player_component.dart';
 import 'components/spawner_component.dart';
 import 'components/sword_component.dart';
 import 'components/zombie_component.dart';
 
-/// Game utama ZOMBO (Phase 2).
+/// Game utama ZOMBO (Phase 3).
 ///
 /// - Background arena fixed (cover, tanpa scroll).
 /// - [player] gerak via [joystick] floating (muncul di titik sentuh).
 /// - [SwordComponent] orbit + hit; tier bisa di-upgrade mid-game.
 /// - [SpawnerComponent] spawn zombie; koin magnet + pickup.
-/// - Game over -> best score disimpan, engine pause + dialog HUD; [restart] reset bersih.
+/// - Juice: partikel burst, angka damage (pool), screen shake.
+/// - Audio: SFX + BGM loop via [AudioService].
+/// - Alur: menu -> run -> (pause) -> game over -> menu / run lagi.
+/// - Game over -> best score disimpan, engine pause + dialog HUD;
+///   [restart] reset bersih.
 class ZomboGame extends FlameGame {
   ZomboGame({required this.state});
 
@@ -50,7 +58,16 @@ class ZomboGame extends FlameGame {
 
   bool get isGameOver => state.isGameOver.value;
 
-  /// Interval spawn saat ini (1.2 dtk -> 0.25 dtk di menit ke-5).
+  /// Pool angka damage (di-reuse, tidak alokasi per hit).
+  final _dmgNumbers = <DamageNumberComponent>[];
+  int _dmgIndex = 0;
+
+  /// Screen shake: sisa waktu + magnitudo + posisi viewfinder dasar.
+  double _shakeTime = 0;
+  double _shakeMag = 0;
+  Vector2? _baseViewPos;
+
+  /// Interval spawn saat ini (2.0 dtk -> 0.7 dtk di menit ke-5).
   double get spawnInterval {
     final t = (runTime / (Balance.spawnRampMinutes * 60)).clamp(0.0, 1.0);
     return math.max(
@@ -80,6 +97,13 @@ class ZomboGame extends FlameGame {
     _spawner = SpawnerComponent();
     add(_spawner);
 
+    // Pool angka damage (pre-add, di-reuse round-robin).
+    for (var i = 0; i < Balance.damageNumberPoolSize; i++) {
+      final n = DamageNumberComponent();
+      _dmgNumbers.add(n);
+      add(n);
+    }
+
     // Joystick floating: muncul di titik sentuh, ditambah terakhir agar
     // menangkap drag di atas komponen lain (yang tidak memakai input).
     joystick = FloatingJoystickComponent();
@@ -91,6 +115,18 @@ class ZomboGame extends FlameGame {
   @override
   void update(double dt) {
     super.update(dt);
+    // Screen shake: offset viewfinder dari posisi dasar, lalu kembalikan.
+    _baseViewPos ??= camera.viewfinder.position.clone();
+    if (_shakeTime > 0) {
+      _shakeTime -= dt;
+      final m = _shakeMag;
+      camera.viewfinder.position = _baseViewPos! +
+          Vector2(
+            (_random.nextDouble() * 2 - 1) * m,
+            (_random.nextDouble() * 2 - 1) * m,
+          );
+      if (_shakeTime <= 0) _resetViewfinder();
+    }
     if (isGameOver) return;
     runTime += dt;
     state.elapsedSeconds.value = runTime.floor();
@@ -100,10 +136,127 @@ class ZomboGame extends FlameGame {
     }
   }
 
-  /// Zombie mati: drop koin, kills++, hapus.
+  @override
+  void onGameResize(Vector2 size) {
+    super.onGameResize(size);
+    if (isLoaded) _fitBackground();
+    // Posisi dasar viewfinder berubah saat resize — refresh bila tidak goyang.
+    if (_shakeTime <= 0) _baseViewPos = camera.viewfinder.position.clone();
+  }
+
+  void _resetViewfinder() {
+    if (_baseViewPos != null) {
+      camera.viewfinder.position = _baseViewPos!.clone();
+    }
+  }
+
+  /// Mulai run baru dari menu: reset bersih, engine jalan, BGM mulai.
+  void startRun() {
+    _clearEntities();
+    runTime = 0;
+    state.reset();
+    state.isMenu.value = false;
+    _resetViewfinder();
+    resumeEngine();
+    AudioService.startBgm();
+  }
+
+  /// Kembali ke menu utama: reset bersih, engine berhenti.
+  void toMenu() {
+    _clearEntities();
+    runTime = 0;
+    state.reset();
+    state.isMenu.value = true;
+    _resetViewfinder();
+    pauseEngine();
+  }
+
+  /// Jeda run (dari tombol pause HUD). Spawner + update berhenti.
+  void pauseGame() {
+    if (state.isMenu.value || isGameOver || state.isPaused.value) return;
+    state.isPaused.value = true;
+    _resetViewfinder();
+    pauseEngine();
+  }
+
+  /// Lanjut run dari jeda.
+  void resumeGame() {
+    if (!state.isPaused.value) return;
+    state.isPaused.value = false;
+    resumeEngine();
+  }
+
+  void _clearEntities() {
+    for (final zombie in List.of(zombies)) {
+      zombie.removeFromParent();
+    }
+    zombies.clear();
+    for (final coin in List.of(coins)) {
+      coin.removeFromParent();
+    }
+    coins.clear();
+  }
+
+  /// Pedang menghantam zombie: burst + angka damage + suara.
+  void onSwordHit(Vector2 pos, int damage) {
+    _spawnBurst(
+      pos,
+      [Colors.white, Colors.yellowAccent, Colors.orangeAccent],
+      Balance.hitParticles,
+      130,
+    );
+    spawnDamageNumber(pos + Vector2(0, -24), damage);
+    AudioService.playSwing();
+    AudioService.playHit();
+  }
+
+  /// Angka damage melayang (pool round-robin).
+  void spawnDamageNumber(Vector2 pos, int damage) {
+    if (_dmgNumbers.isEmpty) return;
+    _dmgIndex = (_dmgIndex + 1) % _dmgNumbers.length;
+    _dmgNumbers[_dmgIndex].spawn(pos, damage);
+  }
+
+  void _spawnBurst(
+    Vector2 pos,
+    List<Color> colors,
+    int count,
+    double speed, {
+    double life = 0.4,
+    double size = 3,
+  }) {
+    add(
+      BurstComponent(
+        position: pos,
+        colors: colors,
+        count: count,
+        speed: speed,
+        life: life,
+        size: size,
+      ),
+    );
+  }
+
+  /// Screen shake kecil (dipakai saat player kena hit).
+  void addShake(double magnitude, double duration) {
+    _shakeMag = magnitude;
+    _shakeTime = duration;
+  }
+
+  /// Zombie mati: death burst + suara + drop koin, kills++.
   void _killZombie(ZombieComponent zombie) {
     zombies.remove(zombie);
+    final pos = zombie.position.clone();
     zombie.removeFromParent();
+    _spawnBurst(
+      pos,
+      [Colors.lightGreen, Colors.green, Colors.redAccent],
+      Balance.deathParticles,
+      170,
+      life: 0.5,
+      size: 4,
+    );
+    AudioService.playDeath();
     state.kills.value++;
     final coinCount = Balance.zombieStats[zombie.type]!.coins;
     for (var i = 0; i < coinCount; i++) {
@@ -111,7 +264,7 @@ class ZomboGame extends FlameGame {
       final velocity = Vector2(math.cos(angle), math.sin(angle)) *
           Balance.coinScatterSpeed;
       final coin = CoinComponent(
-        position: zombie.position.clone(),
+        position: pos.clone(),
         velocity: velocity,
       );
       coins.add(coin);
@@ -120,9 +273,18 @@ class ZomboGame extends FlameGame {
   }
 
   /// Player kena hit zombie (i-frames ditangani PlayerComponent).
+  /// Hanya yang benar-benar mengurangi HP yang memicu shake/suara/getar.
   void damagePlayer(int damage) {
     if (isGameOver) return;
+    final before = state.hp.value;
     player.takeDamage(damage);
+    if (state.hp.value < before) {
+      addShake(Balance.shakeOnPlayerHit, Balance.shakeDuration);
+      AudioService.playPlayerHit();
+      if (state.isVibration.value) {
+        unawaited(HapticFeedback.mediumImpact());
+      }
+    }
     if (state.hp.value <= 0) _gameOver();
   }
 
@@ -142,6 +304,11 @@ class ZomboGame extends FlameGame {
     state.isNewRecord.value = newRecord;
     if (newRecord) unawaited(BestScoreStorage.save(state));
     state.isGameOver.value = true;
+    _resetViewfinder();
+    AudioService.playGameOver();
+    if (state.isVibration.value) {
+      unawaited(HapticFeedback.heavyImpact());
+    }
     pauseEngine();
   }
 
@@ -158,23 +325,30 @@ class ZomboGame extends FlameGame {
     if (state.coins.value < cost) return false;
     state.coins.value -= cost;
     state.swordTier.value = tier;
+    _spawnBurst(
+      player.position.clone(),
+      [Colors.amber, Colors.yellowAccent, Colors.white],
+      Balance.upgradeParticles,
+      160,
+      life: 0.5,
+      size: 4,
+    );
+    AudioService.playUpgrade();
+    if (state.isVibration.value) {
+      unawaited(HapticFeedback.selectionClick());
+    }
     return true;
   }
 
   /// Restart bersih: hapus semua entitas, reset state, lanjut lagi.
+  /// Dipakai dari dialog game over (MAIN LAGI) & pause menu (ULANGI).
   void restart() {
-    for (final zombie in List.of(zombies)) {
-      zombie.removeFromParent();
-    }
-    zombies.clear();
-    for (final coin in List.of(coins)) {
-      coin.removeFromParent();
-    }
-    coins.clear();
+    _clearEntities();
     runTime = 0;
     state.reset();
     player.reset();
     _spawner.resetTimer();
+    _resetViewfinder();
     resumeEngine();
   }
 
@@ -216,17 +390,21 @@ class ZomboGame extends FlameGame {
     }
   }
 
-  /// Koin keambil player.
+  /// Koin keambil player: sparkle + suara + counter naik.
   void collectCoin(CoinComponent coin) {
     coins.remove(coin);
+    final pos = coin.position.clone();
     coin.removeFromParent();
+    _spawnBurst(
+      pos,
+      [Colors.amber, Colors.yellowAccent, Colors.white],
+      Balance.coinSparkleParticles,
+      90,
+      life: 0.3,
+      size: 2.5,
+    );
+    AudioService.playCoin();
     state.coins.value++;
-  }
-
-  @override
-  void onGameResize(Vector2 size) {
-    super.onGameResize(size);
-    if (isLoaded) _fitBackground();
   }
 
   void _fitBackground() {

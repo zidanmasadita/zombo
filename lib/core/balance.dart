@@ -61,6 +61,20 @@ class Balance {
 
   /// Radius sentuh player (untuk damage zombie).
   static const double playerHitRadius = 28;
+
+  // --- Juice (Phase 3) ---
+  /// Jumlah partikel per burst: kena hit / zombie mati / koin / upgrade.
+  static const int hitParticles = 8;
+  static const int deathParticles = 14;
+  static const int coinSparkleParticles = 6;
+  static const int upgradeParticles = 16;
+
+  /// Screen shake saat player kena hit (px) + durasinya (detik).
+  static const double shakeOnPlayerHit = 8;
+  static const double shakeDuration = 0.25;
+
+  /// Ukuran pool angka damage (di-reuse, tidak alokasi per hit).
+  static const int damageNumberPoolSize = 12;
 }
 
 class SwordTier {

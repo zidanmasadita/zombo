@@ -89,6 +89,7 @@ class SwordComponent extends SpriteComponent with HasGameReference<ZomboGame> {
       }
       if (diff.abs() < Balance.swordHitAngle) {
         zombie.takeHit(tier.damage, game.runTime, _angle);
+        game.onSwordHit(zombie.position, tier.damage);
       }
     }
   }
