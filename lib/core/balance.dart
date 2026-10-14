@@ -35,11 +35,12 @@ class Balance {
   };
 
   // --- Spawn ---
-  static const double spawnIntervalStart = 1.2;
-  static const double spawnIntervalMin = 0.25;
+  /// Dikurangi 2026-10-14 (feedback user: kebanyakan): interval lebih renggang, cap lebih rendah.
+  static const double spawnIntervalStart = 2.0;
+  static const double spawnIntervalMin = 0.7;
   /// Menit ke berapa spawn mencapai interval minimum.
   static const double spawnRampMinutes = 5;
-  static const int maxAliveZombies = 150;
+  static const int maxAliveZombies = 90;
 
   // --- Koin ---
   /// Jarak koin mulai ketarik ke player.
