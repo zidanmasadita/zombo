@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
 
+import '../core/balance.dart';
 import '../core/game_state.dart';
 
 /// HUD overlay (Flutter, di atas canvas Flame).
-/// Phase 1: nilai real dari [GameState] + dialog game over + tombol restart.
+/// Phase 2: nilai real dari [GameState] + chip tier pedang + tombol upgrade
+/// + dialog game over (best score) + tombol restart.
 /// [onRestart] dipanggil saat tombol MAIN LAGI ditekan.
+/// [onUpgrade] dipanggil saat tombol upgrade ditekan (return true jika berhasil).
 class HudOverlay extends StatelessWidget {
   const HudOverlay({
     super.key,
     required this.state,
     required this.onRestart,
+    required this.onUpgrade,
   });
 
   final GameState state;
   final VoidCallback onRestart;
+  final bool Function(int tier) onUpgrade;
 
   String _formatTime(int seconds) {
     final mm = (seconds ~/ 60).toString().padLeft(2, '0');
@@ -28,129 +33,183 @@ class HudOverlay extends StatelessWidget {
         SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Column(
               children: [
-                // HP bar (kiri atas).
-                Expanded(
-                  child: ValueListenableBuilder<int>(
-                    valueListenable: state.hp,
-                    builder: (context, hp, _) => _HudChip(
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.favorite,
-                            size: 16,
-                            color: Colors.redAccent,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(6),
-                              child: LinearProgressIndicator(
-                                value: (hp / 100).clamp(0, 1),
-                                minHeight: 10,
-                                backgroundColor: Colors.black45,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // HP bar (kiri atas).
+                    Expanded(
+                      child: ValueListenableBuilder<int>(
+                        valueListenable: state.hp,
+                        builder: (context, hp, _) => _HudChip(
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.favorite,
+                                size: 16,
                                 color: Colors.redAccent,
                               ),
-                            ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: LinearProgressIndicator(
+                                    value: (hp / 100).clamp(0, 1),
+                                    minHeight: 10,
+                                    backgroundColor: Colors.black45,
+                                    color: Colors.redAccent,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '$hp',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '$hp',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Timer (tengah atas).
+                    _HudChip(
+                      child: ValueListenableBuilder<int>(
+                        valueListenable: state.elapsedSeconds,
+                        builder: (context, seconds, _) {
+                          final mm = (seconds ~/ 60).toString().padLeft(2, '0');
+                          final ss = (seconds % 60).toString().padLeft(2, '0');
+                          return Text(
+                            '$mm:$ss',
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
-                              fontSize: 13,
+                              fontSize: 14,
+                              fontFeatures: [FontFeature.tabularFigures()],
                             ),
-                          ),
-                        ],
+                          );
+                        },
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // Timer (tengah atas).
-                _HudChip(
-                  child: ValueListenableBuilder<int>(
-                    valueListenable: state.elapsedSeconds,
-                    builder: (context, seconds, _) {
-                      final mm = (seconds ~/ 60).toString().padLeft(2, '0');
-                      final ss = (seconds % 60).toString().padLeft(2, '0');
-                      return Text(
-                        '$mm:$ss',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          fontFeatures: [FontFeature.tabularFigures()],
+                    const SizedBox(width: 8),
+                    // Koin (kanan atas).
+                    _HudChip(
+                      child: ValueListenableBuilder<int>(
+                        valueListenable: state.coins,
+                        builder: (context, coins, _) => Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.monetization_on,
+                              size: 16,
+                              color: Colors.amber,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '$coins',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                // Koin (kanan atas).
-                _HudChip(
-                  child: ValueListenableBuilder<int>(
-                    valueListenable: state.coins,
-                    builder: (context, coins, _) => Row(
-                      mainAxisSize: MainAxisSize.min,
+                const SizedBox(height: 8),
+                // Kill counter + tier pedang aktif (baris kedua).
+                Row(
+                  children: [
+                    _HudChip(
+                      child: ValueListenableBuilder<int>(
+                        valueListenable: state.kills,
+                        builder: (context, kills, _) => Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.whatshot,
+                              size: 15,
+                              color: Colors.white70,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '$kills kills',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _HudChip(
+                      child: ValueListenableBuilder<int>(
+                        valueListenable: state.swordTier,
+                        builder: (context, tier, _) => Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _tierIcon(tier),
+                              size: 15,
+                              color: _tierColor(tier),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Pedang ${Balance.swordTierNames[tier]}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                // Tombol upgrade (bawah, selama run jalan).
+                // Sentuhan di sini diserap Flutter — tidak menggerakkan karakter.
+                ValueListenableBuilder<bool>(
+                  valueListenable: state.isGameOver,
+                  builder: (context, over, _) {
+                    if (over) return const SizedBox.shrink();
+                    return Row(
                       children: [
-                        const Icon(
-                          Icons.monetization_on,
-                          size: 16,
-                          color: Colors.amber,
+                        Expanded(
+                          child: _UpgradeButton(
+                            tier: 1,
+                            state: state,
+                            onUpgrade: onUpgrade,
+                          ),
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '$coins',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _UpgradeButton(
+                            tier: 2,
+                            state: state,
+                            onUpgrade: onUpgrade,
                           ),
                         ),
                       ],
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            // Kill counter (kiri, baris kedua).
-            Align(
-              alignment: Alignment.centerLeft,
-              child: _HudChip(
-                child: ValueListenableBuilder<int>(
-                  valueListenable: state.kills,
-                  builder: (context, kills, _) => Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.whatshot,
-                        size: 15,
-                        color: Colors.white70,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$kills kills',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
         ),
         // Dialog game over (muncul saat HP habis, engine ter-pause).
         ValueListenableBuilder<bool>(
@@ -180,6 +239,17 @@ class HudOverlay extends StatelessWidget {
                             letterSpacing: 2,
                           ),
                         ),
+                        if (state.isNewRecord.value) ...[
+                          const SizedBox(height: 8),
+                          const Text(
+                            '🏆 REKOR BARU!',
+                            style: TextStyle(
+                              color: Colors.amber,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 16),
                         Text(
                           'Waktu: ${_formatTime(state.elapsedSeconds.value)}',
@@ -202,6 +272,18 @@ class HudOverlay extends StatelessWidget {
                           style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Divider(color: Colors.white24, height: 1),
+                        const SizedBox(height: 12),
+                        Text(
+                          'TERBAIK: ${_formatTime(state.bestTime.value)} • '
+                          '${state.bestKills.value} kills',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -236,6 +318,30 @@ class HudOverlay extends StatelessWidget {
   }
 }
 
+/// Ikon per tier pedang (0 = Besi, 1 = Api, 2 = Petir).
+IconData _tierIcon(int tier) {
+  switch (tier) {
+    case 1:
+      return Icons.local_fire_department;
+    case 2:
+      return Icons.bolt;
+    default:
+      return Icons.construction;
+  }
+}
+
+/// Warna aksen per tier pedang.
+Color _tierColor(int tier) {
+  switch (tier) {
+    case 1:
+      return Colors.deepOrangeAccent;
+    case 2:
+      return Colors.amber;
+    default:
+      return Colors.white70;
+  }
+}
+
 class _HudChip extends StatelessWidget {
   const _HudChip({required this.child});
 
@@ -251,6 +357,91 @@ class _HudChip extends StatelessWidget {
         border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
       ),
       child: child,
+    );
+  }
+}
+
+/// Tombol upgrade satu tier pedang.
+///
+/// - Tier aktif: "AKTIF" (hijau, disable).
+/// - Tier di bawah aktif (sudah terlewati): "TERPAKAI" (abu, disable).
+/// - Tier di atas aktif: "BELI · N koin" — enable hanya jika koin cukup.
+/// Harga & stats dari [Balance.swordTiers] (tidak hardcode di UI).
+class _UpgradeButton extends StatelessWidget {
+  const _UpgradeButton({
+    required this.tier,
+    required this.state,
+    required this.onUpgrade,
+  });
+
+  final int tier;
+  final GameState state;
+  final bool Function(int tier) onUpgrade;
+
+  @override
+  Widget build(BuildContext context) {
+    final tierData = Balance.swordTiers[tier];
+    final name = Balance.swordTierNames[tier];
+    return ValueListenableBuilder<int>(
+      valueListenable: state.swordTier,
+      builder: (context, currentTier, _) {
+        return ValueListenableBuilder<int>(
+          valueListenable: state.coins,
+          builder: (context, coins, _) {
+            final isActive = tier == currentTier;
+            final isPassed = tier < currentTier;
+            final canAfford = coins >= tierData.cost;
+            final enabled = !isActive && !isPassed && canAfford;
+            final label = isActive
+                ? 'AKTIF'
+                : isPassed
+                    ? 'TERPAKAI'
+                    : 'BELI · ${tierData.cost} koin';
+            final bg = isActive
+                ? Colors.green
+                : enabled
+                    ? _tierColor(tier)
+                    : Colors.grey.shade800;
+            return ElevatedButton(
+              onPressed: enabled ? () => onUpgrade(tier) : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: bg,
+                foregroundColor: Colors.black,
+                disabledBackgroundColor: Colors.grey.shade800,
+                disabledForegroundColor: Colors.white54,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(_tierIcon(tier), size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$name ${tier + 1}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'DMG ${tierData.damage} · $label',
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

@@ -1,32 +1,34 @@
+import 'dart:async' show unawaited;
 import 'dart:math' as math;
 
-import 'package:flame/components.dart';
 import 'package:flame/game.dart';
-import 'package:flutter/material.dart';
 
 import '../core/balance.dart';
+import '../core/best_score.dart';
 import '../core/game_state.dart';
 import 'components/background_component.dart';
 import 'components/coin_component.dart';
+import 'components/floating_joystick_component.dart';
 import 'components/player_component.dart';
 import 'components/spawner_component.dart';
 import 'components/sword_component.dart';
 import 'components/zombie_component.dart';
 
-/// Game utama ZOMBO (Phase 1).
+/// Game utama ZOMBO (Phase 2).
 ///
 /// - Background arena fixed (cover, tanpa scroll).
-/// - [player] gerak via [joystick]; [SwordComponent] orbit + hit.
+/// - [player] gerak via [joystick] floating (muncul di titik sentuh).
+/// - [SwordComponent] orbit + hit; tier bisa di-upgrade mid-game.
 /// - [SpawnerComponent] spawn zombie; koin magnet + pickup.
-/// - Game over -> engine pause + dialog HUD; [restart] reset bersih.
+/// - Game over -> best score disimpan, engine pause + dialog HUD; [restart] reset bersih.
 class ZomboGame extends FlameGame {
   ZomboGame({required this.state});
 
   /// State terpusat (dibaca HUD overlay).
   final GameState state;
 
-  /// Joystick virtual kiri bawah (Flame bawaan).
-  late final JoystickComponent joystick;
+  /// Joystick floating: muncul di titik jari menyentuh, bukan fixed kiri bawah.
+  late final FloatingJoystickComponent joystick;
 
   /// Player (dipakai pedang/zombie/koin sebagai target).
   late final PlayerComponent player;
@@ -78,18 +80,9 @@ class ZomboGame extends FlameGame {
     _spawner = SpawnerComponent();
     add(_spawner);
 
-    // Joystick kiri bawah (paling atas agar mudah disentuh).
-    joystick = JoystickComponent(
-      knob: CircleComponent(
-        radius: 28,
-        paint: Paint()..color = Colors.white.withValues(alpha: 0.85),
-      ),
-      background: CircleComponent(
-        radius: 60,
-        paint: Paint()..color = Colors.black.withValues(alpha: 0.35),
-      ),
-      margin: const EdgeInsets.only(left: 32, bottom: 48),
-    );
+    // Joystick floating: muncul di titik sentuh, ditambah terakhir agar
+    // menangkap drag di atas komponen lain (yang tidak memakai input).
+    joystick = FloatingJoystickComponent();
     add(joystick);
 
     _fitBackground();
@@ -134,8 +127,38 @@ class ZomboGame extends FlameGame {
   }
 
   void _gameOver() {
+    // Best score dulu (sebelum isGameOver -> HUD rebuild dengan nilai final).
+    final time = runTime.floor();
+    final kills = state.kills.value;
+    var newRecord = false;
+    if (time > state.bestTime.value) {
+      state.bestTime.value = time;
+      newRecord = true;
+    }
+    if (kills > state.bestKills.value) {
+      state.bestKills.value = kills;
+      newRecord = true;
+    }
+    state.isNewRecord.value = newRecord;
+    if (newRecord) unawaited(BestScoreStorage.save(state));
     state.isGameOver.value = true;
     pauseEngine();
+  }
+
+  /// Beli upgrade pedang ke tier [tier] (1 = Api, 2 = Petir).
+  /// Return true jika berhasil (koin cukup + tier lebih tinggi dari aktif).
+  /// Sprite + stats pedang langsung berubah via [SwordComponent].
+  bool buySwordTier(int tier) {
+    if (isGameOver ||
+        tier <= state.swordTier.value ||
+        tier >= Balance.swordTiers.length) {
+      return false;
+    }
+    final cost = Balance.swordTiers[tier].cost;
+    if (state.coins.value < cost) return false;
+    state.coins.value -= cost;
+    state.swordTier.value = tier;
+    return true;
   }
 
   /// Restart bersih: hapus semua entitas, reset state, lanjut lagi.

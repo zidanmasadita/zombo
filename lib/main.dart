@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flame/game.dart';
+import 'core/best_score.dart';
 import 'core/game_state.dart';
 import 'game/zombo_game.dart';
 import 'ui/hud_overlay.dart';
@@ -14,6 +15,8 @@ void main() async {
   ]);
 
   final state = GameState();
+  // Best score antar sesi dimuat sebelum UI tampil.
+  await BestScoreStorage.loadInto(state);
   final game = ZomboGame(state: state);
 
   runApp(
@@ -27,6 +30,7 @@ void main() async {
             'hud': (context, _) => HudOverlay(
                   state: game.state,
                   onRestart: game.restart,
+                  onUpgrade: game.buySwordTier,
                 ),
           },
           initialActiveOverlays: const ['hud'],

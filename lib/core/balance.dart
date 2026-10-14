@@ -21,6 +21,9 @@ class Balance {
     SwordTier(damage: 45, orbitRadius: 125, spinSpeed: 6.0, cost: 80),
   ];
 
+  /// Nama tier pedang (index sama dengan [swordTiers]).
+  static const List<String> swordTierNames = ['Besi', 'Api', 'Petir'];
+
   // --- Zombie ---
   static const Map<ZombieType, ZombieStats> zombieStats = {
     ZombieType.normal:

@@ -8,7 +8,7 @@ import '../zombo_game.dart';
 
 /// Karakter utama (MC).
 ///
-/// - Gerak mengikuti joystick (deadzone 0.15).
+/// - Gerak mengikuti joystick floating (deadzone 0.15, muncul di titik sentuh).
 /// - Animasi jalan dari 4 frame `mc_walk_0..3` saat bergerak.
 /// - `mc_front` saat diam, `mc_back` saat bergerak ke atas.
 /// - Posisi di-clamp ke dalam arena (viewport).

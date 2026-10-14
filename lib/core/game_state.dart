@@ -18,6 +18,15 @@ class GameState {
   /// Tier pedang aktif (0 = tier 1 Besi, 1 = tier 2 Api, 2 = tier 3 Petir).
   final ValueNotifier<int> swordTier = ValueNotifier(0);
 
+  /// Waktu survive terbaik (detik) antar sesi. TIDAK di-reset per run.
+  final ValueNotifier<int> bestTime = ValueNotifier(0);
+
+  /// Kills terbanyak antar sesi. TIDAK di-reset per run.
+  final ValueNotifier<int> bestKills = ValueNotifier(0);
+
+  /// True jika run yang baru berakhir memecahkan rekor (time atau kills).
+  final ValueNotifier<bool> isNewRecord = ValueNotifier(false);
+
   /// True saat game dijeda.
   final ValueNotifier<bool> isPaused = ValueNotifier(false);
 
@@ -33,6 +42,8 @@ class GameState {
     swordTier.value = 0;
     isPaused.value = false;
     isGameOver.value = false;
+    isNewRecord.value = false;
+    // bestTime / bestKills sengaja TIDAK di-reset (rekor antar sesi).
   }
 
   void dispose() {
@@ -41,6 +52,9 @@ class GameState {
     kills.dispose();
     elapsedSeconds.dispose();
     swordTier.dispose();
+    bestTime.dispose();
+    bestKills.dispose();
+    isNewRecord.dispose();
     isPaused.dispose();
     isGameOver.dispose();
   }
