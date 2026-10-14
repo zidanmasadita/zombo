@@ -16,9 +16,9 @@ class Balance {
   // --- Pedang (orbit) ---
   /// [damage, radiusOrbit, kecepatanPutar (rad/s), hargaKoin] per tier (index 0 = tier 1).
   static const List<SwordTier> swordTiers = [
-    SwordTier(damage: 10, orbitRadius: 70, spinSpeed: 4.2, cost: 0),
-    SwordTier(damage: 22, orbitRadius: 95, spinSpeed: 4.5, cost: 30),
-    SwordTier(damage: 45, orbitRadius: 125, spinSpeed: 5.0, cost: 80),
+    SwordTier(damage: 10, orbitRadius: 70, spinSpeed: 5.0, cost: 0),
+    SwordTier(damage: 22, orbitRadius: 95, spinSpeed: 5.4, cost: 30),
+    SwordTier(damage: 45, orbitRadius: 125, spinSpeed: 6.0, cost: 80),
   ];
 
   // --- Zombie ---
