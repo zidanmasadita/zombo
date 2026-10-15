@@ -91,11 +91,10 @@ class ZomboGame extends FlameGame {
     player = PlayerComponent()..position = size / 2;
     add(player);
 
-    // Pedang orbit (tier 1 di Phase 1) + cincin blur jalur blade.
+    // Pedang orbit (tier 1 di Phase 1).
     final swordSprite = await loadSprite('sword_tier1.png');
     _sword = SwordComponent(sprite: swordSprite);
     add(_sword);
-    add(BladeRingComponent());
 
     // Spawner zombie.
     _spawner = SpawnerComponent();

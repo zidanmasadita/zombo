@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <b>Survive selama mungkin. Pedangmu muter non-stop — kayak mesin potong rumput.</b>
+  <b>Survive selama mungkin. Pedangmu muter non-stop mengelilingimu.</b>
 </p>
 
 <p align="center">
@@ -17,7 +17,7 @@
 
 ## Tentang ZOMBO
 
-**ZOMBO** adalah game survival pixel-art 2D top-down (Flutter + Flame). Kamu adalah satu-satunya survivor di arena yang dikepung zombie dari segala arah. Satu-satunya senjatamu: **sebuah pedang yang berputar tanpa henti** mengelilingimu — secepat mesin potong rumput, sampai blade-nya jadi blur.
+**ZOMBO** adalah game survival pixel-art 2D top-down (Flutter + Flame). Kamu adalah satu-satunya survivor di arena yang dikepung zombie dari segala arah. Satu-satunya senjatamu: **sebuah pedang yang berputar tanpa henti** mengelilingimu.
 
 Zombie yang kena pedang akan jatuh dan menjatuhkan **koin**. Koin dipakai untuk **upgrade pedang** jadi lebih besar, lebih sakit, dan lebih cepat. Semakin lama kamu hidup, semakin banyak dan semakin ganas zombienya.
 
@@ -34,15 +34,15 @@ Gerak → Pedang bunuh zombie → Kumpulin koin → Upgrade pedang → Survive l
 - **Joystick floating** — sentuh di mana saja di layar, joystick muncul di titik itu. Seret untuk gerak, lepas untuk berhenti.
 - **Tidak ada tombol serang** — pedang menyerang sendiri, non-stop. Fokusmu cuma satu: **jangan sampai tersentuh zombie.**
 
-## Pedang — Mesin Potong Rumput
+## Pedang — Orbit Non-Stop
 
-Pedang berputar ~4–5 putaran per detik. Hit-nya berbentuk **cincin**: zombie apa pun yang masuk ring blade langsung kena damage (cooldown 0,35 detik per zombie).
+Pedang berputar tanpa henti mengelilingi karakter. Hit-nya berdasarkan **sudut**: zombie yang sedang dilewati blade (dalam setengah lebar sudut 0,5 rad + band radial blade) kena damage (cooldown 0,35 detik per zombie).
 
 | Tier | Pedang | Damage | Radius | Putaran | Harga |
 |------|--------|--------|--------|---------|-------|
-| 1 | Besi | 10 | 70 | 25 rad/s | — |
-| 2 | Api | 22 | 95 | 28 rad/s | 30 koin |
-| 3 | Petir | 45 | 125 | 32 rad/s | 80 koin |
+| 1 | Besi | 10 | 70 | 5,0 rad/s | — |
+| 2 | Api | 22 | 95 | 5,4 rad/s | 30 koin |
+| 3 | Petir | 45 | 125 | 6,0 rad/s | 80 koin |
 
 Beli upgrade lewat tombol di bawah layar selama run berjalan. Sprite dan stats pedang langsung berubah.
 
@@ -112,7 +112,7 @@ lib/
 │   ├── zombo_game.dart        # Game utama: wiring, spawn, hit, game over, restart
 │   └── components/
 │       ├── player_component.dart
-│       ├── sword_component.dart        # Pedang orbit + cincin blur
+│       ├── sword_component.dart        # Pedang orbit
 │       ├── zombie_component.dart
 │       ├── coin_component.dart
 │       ├── spawner_component.dart

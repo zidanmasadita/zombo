@@ -16,11 +16,11 @@ class Balance {
 
   // --- Pedang (orbit) ---
   /// [damage, radiusOrbit, kecepatanPutar (rad/s), hargaKoin] per tier (index 0 = tier 1).
-  /// Spin MESIN POTONG RUMPUT (2026-10-14): ~4-5 putaran/detik, blade jadi blur.
+  /// REVERT 2026-10-15: kembali ke pedang orbit (bukan mesin potong rumput).
   static const List<SwordTier> swordTiers = [
-    SwordTier(damage: 10, orbitRadius: 70, spinSpeed: 25, cost: 0),
-    SwordTier(damage: 22, orbitRadius: 95, spinSpeed: 28, cost: 30),
-    SwordTier(damage: 45, orbitRadius: 125, spinSpeed: 32, cost: 80),
+    SwordTier(damage: 10, orbitRadius: 70, spinSpeed: 5.0, cost: 0),
+    SwordTier(damage: 22, orbitRadius: 95, spinSpeed: 5.4, cost: 30),
+    SwordTier(damage: 45, orbitRadius: 125, spinSpeed: 6.0, cost: 80),
   ];
 
   /// Nama tier pedang (index sama dengan [swordTiers]).
@@ -57,6 +57,9 @@ class Balance {
   // --- Combat (Phase 1) ---
   /// Cooldown hit per zombie agar satu sapuan tidak multi-hit tiap frame.
   static const double swordHitCooldown = 0.35;
+
+  /// Setengah lebar sudut hit pedang (rad).
+  static const double swordHitAngle = 0.5;
 
   /// Radius sentuh player (untuk damage zombie).
   static const double playerHitRadius = 28;
