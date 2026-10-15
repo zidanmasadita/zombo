@@ -127,7 +127,7 @@ assets/
 
 ## Roadmap (v2)
 
-- [ ] Scrolling world (kamera ikut player)
+- [x] Scrolling world (kamera ikut player)
 - [ ] Boss tiap 5 menit
 - [ ] Tipe zombie baru
 - [ ] Meta-progression antar run
