@@ -11,7 +11,7 @@ import '../zombo_game.dart';
 /// - Gerak mengikuti joystick floating (deadzone 0.15, muncul di titik sentuh).
 /// - Animasi jalan dari 4 frame `mc_walk_0..3` saat bergerak.
 /// - `mc_front` saat diam, `mc_back` saat bergerak ke atas.
-/// - Posisi di-clamp ke dalam arena (viewport).
+/// - Posisi di-clamp ke batas dunia (±Balance.worldBound).
 class PlayerComponent extends SpriteAnimationComponent
     with HasGameReference<ZomboGame> {
   PlayerComponent()
@@ -41,9 +41,9 @@ class PlayerComponent extends SpriteAnimationComponent
     game.state.hp.value = math.max(0, game.state.hp.value - damage);
   }
 
-  /// Reset ke awal run: tengah arena, HP visual bersih, idle.
+  /// Reset ke awal run: origin dunia, HP visual bersih, idle.
   void reset() {
-    position = game.size / 2;
+    position = Vector2.zero();
     _invulnTimer = 0;
     paint.colorFilter = null;
     _setVisual(_PlayerVisual.idle);
@@ -90,10 +90,12 @@ class PlayerComponent extends SpriteAnimationComponent
       final direction = delta.normalized();
       position += direction * Balance.playerSpeed * dt;
 
-      // Clamp ke dalam arena (viewport), dengan margin setengah ukuran sprite.
+      // Clamp pengaman ke batas dunia (bukan lagi viewport — scrolling world),
+      // dengan margin setengah ukuran sprite.
       final half = size / 2;
-      position.x = position.x.clamp(half.x, game.size.x - half.x);
-      position.y = position.y.clamp(half.y, game.size.y - half.y);
+      const b = Balance.worldBound;
+      position.x = position.x.clamp(-b + half.x, b - half.x);
+      position.y = position.y.clamp(-b + half.y, b - half.y);
 
       // Gerak ke atas (layar) -> tampilkan punggung.
       final next = direction.y < -0.3

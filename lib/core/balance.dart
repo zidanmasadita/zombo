@@ -26,6 +26,11 @@ class Balance {
   /// Nama tier pedang (index sama dengan [swordTiers]).
   static const List<String> swordTierNames = ['Besi', 'Api', 'Petir'];
 
+  // --- World (v2.1 scrolling) ---
+  /// Setengah lebar dunia (±worldBound px dari origin). Pengaman agar player
+  /// tidak jalan tak berhingga; kamera + tanah infinite di dalamnya.
+  static const double worldBound = 20000;
+
   // --- Zombie ---
   static const Map<ZombieType, ZombieStats> zombieStats = {
     ZombieType.normal:

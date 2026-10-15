@@ -9,21 +9,21 @@ import '../core/audio_service.dart';
 import '../core/balance.dart';
 import '../core/best_score.dart';
 import '../core/game_state.dart';
-import 'components/background_component.dart';
 import 'components/coin_component.dart';
 import 'components/floating_joystick_component.dart';
 import 'components/fx_component.dart';
+import 'components/ground_component.dart';
 import 'components/player_component.dart';
 import 'components/spawner_component.dart';
 import 'components/sword_component.dart';
 import 'components/zombie_component.dart';
 
-/// Game utama ZOMBO (Phase 3).
+/// Game utama ZOMBO (v2.1 scrolling world).
 ///
-/// - Background arena fixed (cover, tanpa scroll).
-/// - [player] gerak via [joystick] floating (muncul di titik sentuh).
+/// - Scrolling world: kamera ikut player, tanah infinite tiling (tanpa batas arena).
+/// - [player] gerak via [joystick] floating (screen-space, di camera.viewport).
 /// - [SwordComponent] orbit + hit; tier bisa di-upgrade mid-game.
-/// - [SpawnerComponent] spawn zombie; koin magnet + pickup.
+/// - [SpawnerComponent] spawn zombie di luar layar; koin magnet + pickup.
 /// - Juice: partikel burst, angka damage (pool), screen shake.
 /// - Audio: SFX + BGM loop via [AudioService].
 /// - Alur: menu -> run -> (pause) -> game over -> menu / run lagi.
@@ -47,7 +47,6 @@ class ZomboGame extends FlameGame {
   /// Koin yang jatuh saat ini.
   final coins = <CoinComponent>[];
 
-  late final BackgroundComponent _background;
   late final SwordComponent _sword;
   late final SpawnerComponent _spawner;
 
@@ -65,10 +64,9 @@ class ZomboGame extends FlameGame {
   final _dmgNumbers = <DamageNumberComponent>[];
   int _dmgIndex = 0;
 
-  /// Screen shake: sisa waktu + magnitudo + posisi viewfinder dasar.
+  /// Screen shake: sisa waktu + magnitudo (offset di atas posisi kamera ikut player).
   double _shakeTime = 0;
   double _shakeMag = 0;
-  Vector2? _baseViewPos;
 
   /// Interval spawn saat ini (2.0 dtk -> 0.7 dtk di menit ke-5).
   double get spawnInterval {
@@ -82,13 +80,12 @@ class ZomboGame extends FlameGame {
 
   @override
   Future<void> onLoad() async {
-    // Background arena.
-    final mapSprite = await loadSprite('map_arena.jpg');
-    _background = BackgroundComponent(sprite: mapSprite);
-    add(_background);
+    // Tanah infinite (scrolling world): tile seamless, di-render mengikuti kamera.
+    final tileImage = await images.load('ground_tile.png');
+    add(GroundComponent(tileImage: tileImage));
 
-    // Player di tengah arena.
-    player = PlayerComponent()..position = size / 2;
+    // Player di origin dunia (tengah tak berhingga).
+    player = PlayerComponent()..position = Vector2.zero();
     add(player);
 
     // Pedang orbit (tier 1 di Phase 1).
@@ -107,29 +104,26 @@ class ZomboGame extends FlameGame {
       add(n);
     }
 
-    // Joystick floating: muncul di titik sentuh, ditambah terakhir agar
-    // menangkap drag di atas komponen lain (yang tidak memakai input).
+    // Joystick floating di screen-space (camera.viewport) agar tidak ikut
+    // kegeser kamera — koordinat sentuh = koordinat layar.
     joystick = FloatingJoystickComponent();
-    add(joystick);
-
-    _fitBackground();
+    camera.viewport.add(joystick);
   }
 
   @override
   void update(double dt) {
     super.update(dt);
-    // Screen shake: offset viewfinder dari posisi dasar, lalu kembalikan.
-    _baseViewPos ??= camera.viewfinder.position.clone();
+    // Kamera ikut player; screen shake sebagai offset acak di atasnya.
+    var shake = Vector2.zero();
     if (_shakeTime > 0) {
       _shakeTime -= dt;
       final m = _shakeMag;
-      camera.viewfinder.position = _baseViewPos! +
-          Vector2(
-            (_random.nextDouble() * 2 - 1) * m,
-            (_random.nextDouble() * 2 - 1) * m,
-          );
-      if (_shakeTime <= 0) _resetViewfinder();
+      shake = Vector2(
+        (_random.nextDouble() * 2 - 1) * m,
+        (_random.nextDouble() * 2 - 1) * m,
+      );
     }
+    camera.viewfinder.position = player.position + shake;
     if (isGameOver) return;
     runTime += dt;
     state.elapsedSeconds.value = runTime.floor();
@@ -139,27 +133,12 @@ class ZomboGame extends FlameGame {
     }
   }
 
-  @override
-  void onGameResize(Vector2 size) {
-    super.onGameResize(size);
-    if (isLoaded) _fitBackground();
-    // Posisi dasar viewfinder berubah saat resize — refresh bila tidak goyang.
-    if (_shakeTime <= 0) _baseViewPos = camera.viewfinder.position.clone();
-  }
-
-  void _resetViewfinder() {
-    if (_baseViewPos != null) {
-      camera.viewfinder.position = _baseViewPos!.clone();
-    }
-  }
-
   /// Mulai run baru dari menu: reset bersih, engine jalan, BGM mulai.
   void startRun() {
     _clearEntities();
     runTime = 0;
     state.reset();
     state.isMenu.value = false;
-    _resetViewfinder();
     resumeEngine();
     AudioService.startBgm();
   }
@@ -170,7 +149,6 @@ class ZomboGame extends FlameGame {
     runTime = 0;
     state.reset();
     state.isMenu.value = true;
-    _resetViewfinder();
     pauseEngine();
   }
 
@@ -178,7 +156,6 @@ class ZomboGame extends FlameGame {
   void pauseGame() {
     if (state.isMenu.value || isGameOver || state.isPaused.value) return;
     state.isPaused.value = true;
-    _resetViewfinder();
     pauseEngine();
   }
 
@@ -318,7 +295,6 @@ class ZomboGame extends FlameGame {
     state.isNewRecord.value = newRecord;
     if (newRecord) unawaited(BestScoreStorage.save(state));
     state.isGameOver.value = true;
-    _resetViewfinder();
     AudioService.playGameOver();
     if (state.isVibration.value) {
       unawaited(HapticFeedback.heavyImpact());
@@ -363,11 +339,11 @@ class ZomboGame extends FlameGame {
     state.reset();
     player.reset();
     _spawner.resetTimer();
-    _resetViewfinder();
     resumeEngine();
   }
 
-  /// Spawn satu zombie di tepi arena (dipanggil SpawnerComponent).
+  /// Spawn satu zombie di luar layar, mengelilingi viewport kamera
+  /// (dipanggil SpawnerComponent). Zombie jalan ke arah player (AI kejar).
   void spawnZombie() {
     if (zombies.length >= Balance.maxAliveZombies) return;
     final zombie = ZombieComponent(
@@ -389,19 +365,34 @@ class ZomboGame extends FlameGame {
     return ZombieType.normal;
   }
 
+  /// Posisi spawn: satu sisi acak di luar viewport kamera (+ margin),
+  /// agar zombie tidak pop-in terlihat di layar.
   Vector2 _edgePosition() {
-    const inset = 12.0;
+    const margin = 80.0;
+    final cam = camera.viewfinder.position;
     final w = size.x;
     final h = size.y;
     switch (_random.nextInt(4)) {
-      case 0:
-        return Vector2(_random.nextDouble() * w, inset);
-      case 1:
-        return Vector2(_random.nextDouble() * w, h - inset);
-      case 2:
-        return Vector2(inset, _random.nextDouble() * h);
-      default:
-        return Vector2(w - inset, _random.nextDouble() * h);
+      case 0: // atas
+        return Vector2(
+          cam.x + (_random.nextDouble() - 0.5) * (w + margin * 2),
+          cam.y - h / 2 - margin,
+        );
+      case 1: // bawah
+        return Vector2(
+          cam.x + (_random.nextDouble() - 0.5) * (w + margin * 2),
+          cam.y + h / 2 + margin,
+        );
+      case 2: // kiri
+        return Vector2(
+          cam.x - w / 2 - margin,
+          cam.y + (_random.nextDouble() - 0.5) * (h + margin * 2),
+        );
+      default: // kanan
+        return Vector2(
+          cam.x + w / 2 + margin,
+          cam.y + (_random.nextDouble() - 0.5) * (h + margin * 2),
+        );
     }
   }
 
@@ -422,8 +413,4 @@ class ZomboGame extends FlameGame {
     state.coins.value++;
   }
 
-  void _fitBackground() {
-    final spriteSize = Vector2(1024, 1024);
-    _background.fitTo(size, spriteSize);
-  }
 }
