@@ -170,6 +170,42 @@ class HudOverlay extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 8),
+                    // HP bar boss (muncul hanya saat boss aktif).
+                    ValueListenableBuilder<double>(
+                      valueListenable: state.bossHpFrac,
+                      builder: (context, frac, _) {
+                        if (frac < 0) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _HudChip(
+                            child: Row(
+                              children: [
+                                const Text(
+                                  'BOSS',
+                                  style: TextStyle(
+                                    color: Colors.redAccent,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: LinearProgressIndicator(
+                                      value: frac.clamp(0.0, 1.0),
+                                      minHeight: 10,
+                                      backgroundColor: Colors.black45,
+                                      color: Colors.red,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                     // Kill counter + tier pedang aktif (baris kedua).
                     Row(
                       children: [
@@ -255,6 +291,31 @@ class HudOverlay extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
+            // Banner peringatan boss (tengah layar, tidak blokir sentuhan).
+            ValueListenableBuilder<bool>(
+              valueListenable: state.bossWarningVisible,
+              builder: (context, visible, _) {
+                if (!visible) return const SizedBox.shrink();
+                return const IgnorePointer(
+                  child: Center(
+                    child: Text(
+                      'BOSS DATANG!',
+                      style: TextStyle(
+                        color: Colors.redAccent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 36,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black,
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
             // Dialog jeda (muncul saat pause, engine berhenti).
             ValueListenableBuilder<bool>(

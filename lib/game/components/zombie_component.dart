@@ -33,18 +33,21 @@ class ZombieComponent extends SpriteComponent with HasGameReference<ZomboGame> {
         ZombieType.normal => 30,
         ZombieType.fast => 26,
         ZombieType.tank => 45,
+        ZombieType.boss => 70,
       };
 
   static Vector2 _sizeFor(ZombieType type) => switch (type) {
         ZombieType.normal => Vector2(64, 82),
         ZombieType.fast => Vector2(56, 84),
         ZombieType.tank => Vector2(96, 87),
+        ZombieType.boss => Vector2(170, 218),
       };
 
   static String _spriteFor(ZombieType type) => switch (type) {
         ZombieType.normal => 'zombie_normal.png',
         ZombieType.fast => 'zombie_fast.png',
         ZombieType.tank => 'zombie_tank.png',
+        ZombieType.boss => 'boss.png',
       };
 
   static const _flashFilter =

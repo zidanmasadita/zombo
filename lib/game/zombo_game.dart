@@ -17,6 +17,7 @@ import 'components/player_component.dart';
 import 'components/spawner_component.dart';
 import 'components/sword_component.dart';
 import 'components/zombie_component.dart';
+import 'components/boss_component.dart';
 
 /// Game utama ZOMBO (v2.1 scrolling world).
 ///
@@ -41,8 +42,20 @@ class ZomboGame extends FlameGame {
   /// Player (dipakai pedang/zombie/koin sebagai target).
   late final PlayerComponent player;
 
-  /// Zombie yang hidup saat ini.
+  /// Zombie yang hidup saat ini (termasuk boss — pedang iterate list ini).
   final zombies = <ZombieComponent>[];
+
+  /// Boss yang aktif saat ini (null jika tidak ada). Juga ada di [zombies].
+  BossComponent? boss;
+
+  /// Jumlah boss yang sudah spawn dalam run ini.
+  int _bossCount = 0;
+
+  /// Run time (detik) saat boss berikutnya dijadwalkan spawn.
+  double _nextBossAt = Balance.bossInterval;
+
+  /// True jika banner peringatan boss sudah ditampilkan untuk jadwal ini.
+  bool _bossWarningShown = false;
 
   /// Koin yang jatuh saat ini.
   final coins = <CoinComponent>[];
@@ -131,14 +144,40 @@ class ZomboGame extends FlameGame {
     // Juga despawn zombie yang terlalu jauh: player (200 px/s) lebih cepat dari
     // semua zombie, jadi yang tertinggal jauh tidak akan terkejar — hapus agar
     // tidak menuhin cap 90 dan spawn baru tetap jalan.
+    // Boss dikecualikan dari despawn dan punya death handler sendiri.
     for (final zombie in List.of(zombies)) {
       if (zombie.hp <= 0) {
-        _killZombie(zombie);
-      } else if ((zombie.position - player.position).length >
-          Balance.zombieDespawnDistance) {
+        if (zombie is BossComponent) {
+          _killBoss(zombie);
+        } else {
+          _killZombie(zombie);
+        }
+      } else if (zombie is! BossComponent &&
+          (zombie.position - player.position).length >
+              Balance.zombieDespawnDistance) {
         zombies.remove(zombie);
         zombie.removeFromParent();
       }
+    }
+
+    // Timer boss: peringatan 3 dtk sebelum spawn, spawn tiap bossInterval.
+    // Kalau boss sebelumnya masih hidup, jadwal tertunda sampai boss mati.
+    if (boss == null && runTime >= _nextBossAt - Balance.bossWarningTime) {
+      if (!_bossWarningShown) {
+        _bossWarningShown = true;
+        state.bossWarningVisible.value = true;
+        AudioService.playUpgrade();
+      }
+    }
+    if (boss == null && runTime >= _nextBossAt) {
+      _spawnBoss();
+    }
+
+    // Update fraksi HP boss untuk HP bar di HUD.
+    final b = boss;
+    if (b != null) {
+      state.bossHpFrac.value =
+          (b.hp / b.maxHp).clamp(0.0, 1.0).toDouble();
     }
   }
 
@@ -180,6 +219,10 @@ class ZomboGame extends FlameGame {
       zombie.removeFromParent();
     }
     zombies.clear();
+    boss = null;
+    _bossCount = 0;
+    _nextBossAt = Balance.bossInterval;
+    _bossWarningShown = false;
     for (final coin in List.of(coins)) {
       coin.removeFromParent();
     }
@@ -263,6 +306,55 @@ class ZomboGame extends FlameGame {
       final angle = _random.nextDouble() * math.pi * 2;
       final velocity = Vector2(math.cos(angle), math.sin(angle)) *
           Balance.coinScatterSpeed;
+      final coin = CoinComponent(
+        position: pos.clone(),
+        velocity: velocity,
+      );
+      coins.add(coin);
+      world.add(coin);
+    }
+  }
+
+  /// Spawn boss: tiap bossInterval detik, maks 1 aktif dalam satu waktu.
+  void _spawnBoss() {
+    _bossCount++;
+    _bossWarningShown = false;
+    state.bossWarningVisible.value = false;
+    _nextBossAt = runTime + Balance.bossInterval;
+    final b = BossComponent(
+      position: _edgePosition(),
+      bossNumber: _bossCount,
+    );
+    boss = b;
+    zombies.add(b);
+    world.add(b);
+    state.bossHpFrac.value = 1.0;
+    addShake(6, 0.5);
+    AudioService.playUpgrade();
+  }
+
+  /// Boss mati: burst besar + hujan koin + kills++.
+  void _killBoss(BossComponent b) {
+    zombies.remove(b);
+    boss = null;
+    final pos = b.position.clone();
+    b.removeFromParent();
+    _spawnBurst(
+      pos,
+      [Colors.red, Colors.orange, Colors.yellowAccent, Colors.white],
+      Balance.deathParticles * 3,
+      260,
+      life: 0.8,
+      size: 6,
+    );
+    AudioService.playDeath();
+    state.kills.value++;
+    state.bossHpFrac.value = -1;
+    for (var i = 0; i < b.stats.coins; i++) {
+      final angle = _random.nextDouble() * math.pi * 2;
+      final velocity = Vector2(math.cos(angle), math.sin(angle)) *
+          Balance.coinScatterSpeed *
+          1.5;
       final coin = CoinComponent(
         position: pos.clone(),
         velocity: velocity,

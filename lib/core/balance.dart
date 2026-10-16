@@ -36,6 +36,24 @@ class Balance {
   /// akan terkejar — despawn agar cap zombie tidak macet.
   static const double zombieDespawnDistance = 1500;
 
+  // --- Boss (v2.2) ---
+  /// Tiap berapa detik boss spawn (dihitung dari run time).
+  static const double bossInterval = 300;
+
+  /// Berapa detik sebelum spawn muncul banner peringatan.
+  static const double bossWarningTime = 3;
+
+  /// HP boss pertama; boss ke-n: bossBaseHp * bossHpScale^(n-1).
+  static const int bossBaseHp = 600;
+  static const double bossHpScale = 1.6;
+
+  /// Damage boss pertama; boss ke-n: bossBaseDamage + (n-1) * bossDamageBonus.
+  static const int bossBaseDamage = 30;
+  static const int bossDamageBonus = 5;
+
+  /// Koin yang dijatuhkan boss (disebar di sekitar posisi mati).
+  static const int bossBaseCoins = 25;
+
   // --- Zombie ---
   static const Map<ZombieType, ZombieStats> zombieStats = {
     ZombieType.normal:
@@ -44,6 +62,9 @@ class Balance {
         ZombieStats(hp: 20, speed: 95, touchDamage: 8, coins: 1),
     ZombieType.tank:
         ZombieStats(hp: 160, speed: 32, touchDamage: 25, coins: 5),
+    // Boss: stat dasar; HP & damage di-scale per boss ke-n di BossComponent.
+    ZombieType.boss:
+        ZombieStats(hp: 600, speed: 40, touchDamage: 30, coins: 25),
   };
 
   // --- Spawn ---
@@ -106,7 +127,7 @@ class SwordTier {
   });
 }
 
-enum ZombieType { normal, fast, tank }
+enum ZombieType { normal, fast, tank, boss }
 
 class ZombieStats {
   final int hp;
