@@ -82,26 +82,26 @@ class ZomboGame extends FlameGame {
   Future<void> onLoad() async {
     // Tanah infinite (scrolling world): tile seamless, di-render mengikuti kamera.
     final tileImage = await images.load('ground_tile.png');
-    add(GroundComponent(tileImage: tileImage));
+    world.add(GroundComponent(tileImage: tileImage));
 
     // Player di origin dunia (tengah tak berhingga).
     player = PlayerComponent()..position = Vector2.zero();
-    add(player);
+    world.add(player);
 
     // Pedang orbit (tier 1 di Phase 1).
     final swordSprite = await loadSprite('sword_tier1.png');
     _sword = SwordComponent(sprite: swordSprite);
-    add(_sword);
+    world.add(_sword);
 
     // Spawner zombie.
     _spawner = SpawnerComponent();
-    add(_spawner);
+    world.add(_spawner);
 
     // Pool angka damage (pre-add, di-reuse round-robin).
     for (var i = 0; i < Balance.damageNumberPoolSize; i++) {
       final n = DamageNumberComponent();
       _dmgNumbers.add(n);
-      add(n);
+      world.add(n);
     }
 
     // Joystick floating di screen-space (camera.viewport) agar tidak ikut
@@ -176,7 +176,7 @@ class ZomboGame extends FlameGame {
     }
     coins.clear();
     // Burst partikel ikut dibersihkan (onDone-nya decrement _liveBursts).
-    for (final burst in List.of(children.query<BurstComponent>())) {
+    for (final burst in List.of(world.children.query<BurstComponent>())) {
       burst.removeFromParent();
     }
     _liveBursts = 0;
@@ -213,7 +213,7 @@ class ZomboGame extends FlameGame {
     // Cap burst hidup (anti-stutter saat zombie banyak + hit cincin sering).
     if (_liveBursts >= Balance.maxLiveBursts) return;
     _liveBursts++;
-    add(
+    world.add(
       BurstComponent(
         position: pos,
         colors: colors,
@@ -259,7 +259,7 @@ class ZomboGame extends FlameGame {
         velocity: velocity,
       );
       coins.add(coin);
-      add(coin);
+      world.add(coin);
     }
   }
 
@@ -351,7 +351,7 @@ class ZomboGame extends FlameGame {
       position: _edgePosition(),
     );
     zombies.add(zombie);
-    add(zombie);
+    world.add(zombie);
   }
 
   /// Tipe zombie: Normal selalu ada; Cepat muncul >30 dtk, Tank >90 dtk.
