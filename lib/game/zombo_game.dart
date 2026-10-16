@@ -128,8 +128,17 @@ class ZomboGame extends FlameGame {
     runTime += dt;
     state.elapsedSeconds.value = runTime.floor();
     // Bersihkan zombie yang HP-nya habis (damage terjadi di SwordComponent).
+    // Juga despawn zombie yang terlalu jauh: player (200 px/s) lebih cepat dari
+    // semua zombie, jadi yang tertinggal jauh tidak akan terkejar — hapus agar
+    // tidak menuhin cap 90 dan spawn baru tetap jalan.
     for (final zombie in List.of(zombies)) {
-      if (zombie.hp <= 0) _killZombie(zombie);
+      if (zombie.hp <= 0) {
+        _killZombie(zombie);
+      } else if ((zombie.position - player.position).length >
+          Balance.zombieDespawnDistance) {
+        zombies.remove(zombie);
+        zombie.removeFromParent();
+      }
     }
   }
 
@@ -365,35 +374,30 @@ class ZomboGame extends FlameGame {
     return ZombieType.normal;
   }
 
-  /// Posisi spawn: satu sisi acak di luar viewport kamera (+ margin),
-  /// agar zombie tidak pop-in terlihat di layar.
+  /// Posisi spawn: di luar layar, bias ke arah gerakan player.
+  /// Kalau player jalan, zombie spawn di depan arah gerak (±90°) agar
+  /// player menabrak mereka — bukan ketinggalan di belakang.
+  /// Kalau player diam, acak ke segala arah (perilaku lama).
   Vector2 _edgePosition() {
     const margin = 80.0;
     final cam = camera.viewfinder.position;
     final w = size.x;
     final h = size.y;
-    switch (_random.nextInt(4)) {
-      case 0: // atas
-        return Vector2(
-          cam.x + (_random.nextDouble() - 0.5) * (w + margin * 2),
-          cam.y - h / 2 - margin,
-        );
-      case 1: // bawah
-        return Vector2(
-          cam.x + (_random.nextDouble() - 0.5) * (w + margin * 2),
-          cam.y + h / 2 + margin,
-        );
-      case 2: // kiri
-        return Vector2(
-          cam.x - w / 2 - margin,
-          cam.y + (_random.nextDouble() - 0.5) * (h + margin * 2),
-        );
-      default: // kanan
-        return Vector2(
-          cam.x + w / 2 + margin,
-          cam.y + (_random.nextDouble() - 0.5) * (h + margin * 2),
-        );
+
+    final moveDelta = joystick.delta;
+    final moving = moveDelta.length > Balance.joystickDeadzone;
+
+    double angle;
+    if (moving) {
+      final base = math.atan2(moveDelta.y, moveDelta.x);
+      angle = base + (_random.nextDouble() - 0.5) * math.pi;
+    } else {
+      angle = _random.nextDouble() * math.pi * 2;
     }
+
+    // Di luar layar: setengah diagonal + margin.
+    final dist = math.sqrt(w * w + h * h) / 2 + margin;
+    return cam + Vector2(math.cos(angle), math.sin(angle)) * dist;
   }
 
   /// Koin keambil player: sparkle + suara + counter naik.

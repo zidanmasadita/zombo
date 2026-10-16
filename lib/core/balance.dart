@@ -31,6 +31,11 @@ class Balance {
   /// tidak jalan tak berhingga; kamera + tanah infinite di dalamnya.
   static const double worldBound = 20000;
 
+  /// Jarak zombie dari player saat dianggap hilang (despawn, tanpa koin/kill).
+  /// Player lebih cepat dari semua zombie, jadi yang tertinggal jauh tidak
+  /// akan terkejar — despawn agar cap zombie tidak macet.
+  static const double zombieDespawnDistance = 1500;
+
   // --- Zombie ---
   static const Map<ZombieType, ZombieStats> zombieStats = {
     ZombieType.normal:
